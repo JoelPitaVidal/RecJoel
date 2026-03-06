@@ -1,8 +1,8 @@
 <template>
     <div class="container mt-5">
-        <h1 class="text-center-mb4"></h1>
+        <h1 class="text-center-mb4">Empleados</h1>
         <p class="lead text-center">
-        Esta es la página de Estadisticas en nuestro sistema de gestión de tareas
+        Esta es la página de Empleados en nuestro sistema de gestión de tareas
         </p>
     </div>
 </template>
