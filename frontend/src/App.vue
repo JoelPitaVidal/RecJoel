@@ -1,13 +1,11 @@
 <template>
-  <div class="d-flex flex-column min-vh-100 justify-content-center">
-    <div class ="w-75 w-lg-80 mx-auto">
+  <div class="d-flex flex-column min-vh-100 w-75 w-lg-80 mx-auto">
     <Navbar />
-    <main class="flex-grow-1 w-75 mx-auto w-lg-80">
+    <main class="flex-grow-1">
       <router-view />
     </main>
     <FooTer />
     </div>
-  </div>
 </template>
 
 <script setup>
