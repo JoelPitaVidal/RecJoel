@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import IniCio from '../components/IniCio.vue';
+import Inicio from '../components/Inicio.vue';
 import EmpleaDos from '../components/EmpleaDos.vue';
 import TareaS from '../components/TareaS.vue';
 import EstadisTicas from '../components/EstadisTicas.vue';
@@ -8,7 +8,7 @@ import AbouT from '../components/AbouT.vue';
 const routes = [
   {
     path: "/",
-    name: "IniCio",
+    name: "Inicio",
     component: IniCio,
     },
     {
