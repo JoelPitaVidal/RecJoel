@@ -77,7 +77,6 @@
                 <button type="submit" class="btn btn-primary">
                   {{ empleadoSeleccionadoId ? 'Guardar cambios' : 'Añadir empleado' }}
                 </button>
-
                 <button
                   type="button"
                   class="btn btn-outline-secondary"
@@ -98,30 +97,31 @@
             class="card-header bg-dark text-white d-flex justify-content-between align-items-center"
           >
             <h2 class="h5 mb-0">Listado de empleados</h2>
-            <span class="badge bg-light text-dark">{{ getEmpleado().length }}</span>
+            <!-- Añadido check de seguridad para empleados.length -->
+            <span class="badge bg-light text-dark" v-if="empleados">{{ empleados.length }}</span>
           </div>
 
           <div class="card-body">
-            <div v-if="getEmpleado().length === 0" class="alert alert-info mb-0">
+            <!-- Check de seguridad para evitar errores si inject falla -->
+            <div v-if="!empleados" class="alert alert-danger">
+              Error: No se pudo cargar la lista de empleados.
+            </div>
+
+            <div v-else-if="empleados.length === 0" class="alert alert-info mb-0">
               No hay empleados todavía.
             </div>
 
             <div v-else class="d-flex flex-column gap-3">
               <div
-                v-for="empleado in getEmpleado()"
+                v-for="empleado in empleados"
                 :key="empleado.id"
                 class="border rounded p-3 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3"
               >
                 <div>
-                  <h3 class="h6 mb-1">
-                    {{ empleado.nombre }} {{ empleado.apellidos }}
-                  </h3>
-                  <p class="mb-1">
-                    <strong>Email:</strong> {{ empleado.email }}
-                  </p>
-                  <p class="mb-1">
-                    <strong>Móvil:</strong> {{ empleado.movil || 'Sin móvil' }}
-                  </p>
+                  <h3 class="h6 mb-1">{{ empleado.nombre }} {{ empleado.apellidos }}</h3>
+                  <p class="mb-1 text-muted small"><strong>ID:</strong> {{ empleado.id }}</p>
+                  <p class="mb-1"><strong>Email:</strong> {{ empleado.email }}</p>
+                  <p class="mb-1"><strong>Móvil:</strong> {{ empleado.movil || 'Sin móvil' }}</p>
                   <p class="mb-0 text-capitalize">
                     <strong>Puesto:</strong> {{ empleado.puesto || 'Sin asignar' }}
                   </p>
@@ -135,7 +135,6 @@
                   >
                     Cargar
                   </button>
-
                   <button
                     type="button"
                     class="btn btn-sm btn-outline-danger"
@@ -149,32 +148,15 @@
           </div>
         </div>
       </div>
-
     </div>
   </section>
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { reactive, ref, inject } from 'vue'
 
-const empleados = ref([
-  {
-    id: 1,
-    apellidos: 'Pérez Gómez',
-    nombre: 'Ana',
-    email: 'ana@empresa.com',
-    movil: '600111222',
-    puesto: 'rrhh'
-  },
-  {
-    id: 2,
-    apellidos: 'López Ruiz',
-    nombre: 'Carlos',
-    email: 'carlos@empresa.com',
-    movil: '600333444',
-    puesto: 'ventas'
-  }
-])
+// Inyectamos el array. Es vital que en App.vue esté como provide('empleados', ref([]))
+const empleados = inject('empleados')
 
 const form = reactive({
   id: null,
@@ -185,33 +167,15 @@ const form = reactive({
   puesto: ''
 })
 
-const errores = reactive({
-  nombre: '',
-  email: ''
-})
-
+const errores = reactive({ nombre: '', email: '' })
 const empleadoSeleccionadoId = ref(null)
-
-function getEmpleado() {
-  return empleados.value
-}
 
 function validarFormulario() {
   errores.nombre = ''
   errores.email = ''
-
   let valido = true
-
-  if (!form.nombre) {
-    errores.nombre = 'El nombre es obligatorio.'
-    valido = false
-  }
-
-  if (!form.email) {
-    errores.email = 'El email es obligatorio.'
-    valido = false
-  }
-
+  if (!form.nombre) { errores.nombre = 'El nombre es obligatorio.'; valido = false }
+  if (!form.email)  { errores.email  = 'El email es obligatorio.';  valido = false }
   return valido
 }
 
@@ -219,74 +183,57 @@ function addEmpleado() {
   if (!validarFormulario()) return
 
   if (empleadoSeleccionadoId.value) {
-    const index = empleados.value.findIndex(
-      (empleado) => empleado.id === empleadoSeleccionadoId.value
-    )
-
+    // EDITAR: Buscamos el índice y actualizamos los campos uno a uno
+    const index = empleados.value.findIndex(e => e.id === empleadoSeleccionadoId.value)
     if (index !== -1) {
-      empleados.value[index] = {
-        id: empleadoSeleccionadoId.value,
-        apellidos: form.apellidos,
-        nombre: form.nombre,
-        email: form.email,
-        movil: form.movil,
-        puesto: form.puesto
+      empleados.value[index] = { 
+        ...empleados.value[index], // Mantener campos que no están en el form si los hubiera
+        ...form, 
+        id: empleadoSeleccionadoId.value 
       }
     }
   } else {
+    // AÑADIR: Nuevo objeto al array
     empleados.value.push({
-      id: Date.now(),
-      apellidos: form.apellidos,
-      nombre: form.nombre,
-      email: form.email,
-      movil: form.movil,
-      puesto: form.puesto
+      ...form,
+      id: Date.now() // Generamos ID numérico
     })
   }
-
   resetFormulario()
 }
 
 function selEmpleado(empleado) {
   empleadoSeleccionadoId.value = empleado.id
-  form.id = empleado.id
-  form.apellidos = empleado.apellidos
-  form.nombre = empleado.nombre
-  form.email = empleado.email
-  form.movil = empleado.movil
-  form.puesto = empleado.puesto
+  // Usamos una copia para no modificar el objeto del listado en tiempo real mientras escribimos
+  Object.assign(form, { ...empleado })
 }
 
 function delEmpleado(id) {
-  empleados.value = empleados.value.filter((empleado) => empleado.id !== id)
-
-  if (empleadoSeleccionadoId.value === id) {
-    resetFormulario()
+  // CORRECCIÓN CRÍTICA: No reasignar empleados.value directamente si da error de constante.
+  // Usamos findIndex + splice para modificar el array original inyectado.
+  const index = empleados.value.findIndex(e => e.id === id)
+  if (index !== -1) {
+    empleados.value.splice(index, 1)
+    if (empleadoSeleccionadoId.value === id) resetFormulario()
   }
 }
 
 function resetFormulario() {
   empleadoSeleccionadoId.value = null
-  form.id = null
-  form.apellidos = ''
-  form.nombre = ''
-  form.email = ''
-  form.movil = ''
-  form.puesto = ''
-
+  Object.assign(form, { 
+    id: null, 
+    apellidos: '', 
+    nombre: '', 
+    email: '', 
+    movil: '', 
+    puesto: '' 
+  })
   errores.nombre = ''
-  errores.email = ''
+  errores.email  = ''
 }
 </script>
 
 <style scoped>
-.card {
-  border: none;
-  border-radius: 1rem;
-}
-
-.card-header {
-  border-top-left-radius: 1rem;
-  border-top-right-radius: 1rem;
-}
+.card { border: none; border-radius: 1rem; }
+.card-header { border-top-left-radius: 1rem; border-top-right-radius: 1rem; }
 </style>

@@ -63,44 +63,26 @@
                 <small v-if="errores.estado" class="text-danger">{{ errores.estado }}</small>
               </div>
 
-              <!-- Prioridad (radiobutton) -->
+              <!-- Prioridad -->
               <div>
                 <label class="form-label">Prioridad</label>
                 <div class="d-flex gap-3">
-                  <div class="form-check">
+                  <div class="form-check" v-for="prio in ['baja', 'media', 'alta']" :key="prio">
                     <input
                       class="form-check-input"
                       type="radio"
-                      id="prioBaja"
-                      value="baja"
+                      :id="'prio' + prio"
+                      :value="prio"
                       v-model="form.prioridad"
                     />
-                    <label class="form-check-label" for="prioBaja">🟢 Baja</label>
-                  </div>
-                  <div class="form-check">
-                    <input
-                      class="form-check-input"
-                      type="radio"
-                      id="prioMedia"
-                      value="media"
-                      v-model="form.prioridad"
-                    />
-                    <label class="form-check-label" for="prioMedia">🟡 Media</label>
-                  </div>
-                  <div class="form-check">
-                    <input
-                      class="form-check-input"
-                      type="radio"
-                      id="prioAlta"
-                      value="alta"
-                      v-model="form.prioridad"
-                    />
-                    <label class="form-check-label" for="prioAlta">🔴 Alta</label>
+                    <label class="form-check-label text-capitalize" :for="'prio' + prio">
+                      {{ prio === 'baja' ? '🟢' : prio === 'media' ? '🟡' : '🔴' }} {{ prio }}
+                    </label>
                   </div>
                 </div>
               </div>
 
-              <!-- Empleado (búsqueda por ID) -->
+              <!-- Empleado (Búsqueda por ID) -->
               <div>
                 <label for="empleadoId" class="form-label">ID Empleado</label>
                 <div class="input-group">
@@ -109,21 +91,19 @@
                     v-model="form.empleadoId"
                     type="number"
                     class="form-control"
-                    :class="empleadoEncontrado === true ? 'border-warning bg-warning bg-opacity-25'
-                           : empleadoEncontrado === false ? 'border-danger' : ''"
-                    placeholder="Introduce el ID del empleado"
+                    :class="estiloInputEmpleado"
+                    placeholder="ID del empleado"
                     @input="resetBusquedaEmpleado"
                   />
                   <button
                     type="button"
                     class="btn btn-outline-secondary"
                     @click="buscarEmpleado"
-                    title="Buscar empleado"
                   >
                     🔍
                   </button>
                 </div>
-                <small v-if="empleadoEncontrado === true" class="text-warning fw-bold">
+                <small v-if="empleadoEncontrado === true" class="text-success fw-bold">
                   ✅ {{ nombreEmpleadoEncontrado }}
                 </small>
                 <small v-if="empleadoEncontrado === false" class="text-danger">
@@ -131,7 +111,6 @@
                 </small>
               </div>
 
-              <!-- Botones -->
               <div class="d-flex gap-2 flex-wrap">
                 <button type="submit" class="btn btn-primary">
                   {{ tareaSeleccionadaId ? 'Guardar cambios' : 'Añadir tarea' }}
@@ -170,39 +149,23 @@
                   <div>
                     <h3 class="h6 mb-1 fw-bold">{{ tarea.titulo }}</h3>
                     <p class="mb-1 text-muted small">{{ tarea.descripcion }}</p>
-                    <p class="mb-1">
-                      <strong>Fecha:</strong> {{ tarea.fecha }}
-                    </p>
-                    <p class="mb-1">
-                      <strong>Estado:</strong>
+                    <p class="mb-1 small"><strong>📅 Fecha:</strong> {{ tarea.fecha }}</p>
+                    <p class="mb-1 small">
+                      <strong>📌 Estado:</strong>
                       <span class="badge ms-1" :class="badgeEstado(tarea.estado)">
                         {{ estadoLabel(tarea.estado) }}
                       </span>
                     </p>
-                    <p class="mb-1">
-                      <strong>Prioridad:</strong> {{ tarea.prioridad || 'Sin asignar' }}
-                    </p>
-                    <p class="mb-0">
-                      <strong>Empleado:</strong>
-                      {{ nombreEmpleado(tarea.empleadoId) }}
+                    <p class="mb-1 small"><strong>⚡ Prioridad:</strong> {{ tarea.prioridad }}</p>
+                    <p class="mb-0 small">
+                      <strong>👤 Empleado:</strong>
+                      <span class="fw-bold">{{ nombreEmpleado(tarea.empleadoId) }}</span>
                     </p>
                   </div>
 
-                  <div class="d-flex gap-2 flex-wrap">
-                    <button
-                      type="button"
-                      class="btn btn-sm btn-outline-primary"
-                      @click="selTarea(tarea)"
-                    >
-                      Cargar
-                    </button>
-                    <button
-                      type="button"
-                      class="btn btn-sm btn-outline-danger"
-                      @click="delTarea(tarea.id)"
-                    >
-                      Eliminar
-                    </button>
+                  <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-primary" @click="selTarea(tarea)">Cargar</button>
+                    <button class="btn btn-sm btn-outline-danger" @click="delTarea(tarea.id)">Eliminar</button>
                   </div>
                 </div>
               </div>
@@ -216,14 +179,11 @@
 </template>
 
 <script setup>
-import { reactive, ref, inject } from 'vue'
+import { reactive, ref, inject, computed } from 'vue'
 import Swal from 'sweetalert2'
 
-// Empleados compartidos desde App.vue mediante provide/inject
 const empleados = inject('empleados')
-
-// ── Estado local de tareas ──────────────────────────────────────────
-const tareas = ref([])
+const tareas = ref([]) // Array local de tareas para esta entrega
 
 const form = reactive({
   titulo: '',
@@ -234,63 +194,49 @@ const form = reactive({
   empleadoId: null
 })
 
-const errores = reactive({
-  titulo: '',
-  fecha: '',
-  estado: ''
-})
-
+const errores = reactive({ titulo: '', fecha: '', estado: '' })
 const tareaSeleccionadaId = ref(null)
-const empleadoEncontrado = ref(null)   // null = sin buscar | true = encontrado | false = no existe
+const empleadoEncontrado = ref(null) 
 const nombreEmpleadoEncontrado = ref('')
 
-// ── Helpers de estilo ───────────────────────────────────────────────
-function estadoClase(estado) {
-  return {
-    'border-danger bg-danger bg-opacity-10':    estado === 'pendiente',
-    'border-warning bg-warning bg-opacity-10':  estado === 'en_proceso',
-    'border-success bg-success bg-opacity-10':  estado === 'finalizada'
-  }
-}
+// Computed para el color del input de empleado (Amarillo si existe, Rojo si no)
+const estiloInputEmpleado = computed(() => {
+  if (empleadoEncontrado.value === true) return 'bg-warning bg-opacity-25 border-warning'
+  if (empleadoEncontrado.value === false) return 'border-danger'
+  return ''
+})
 
-function badgeEstado(estado) {
-  return {
-    'bg-danger':  estado === 'pendiente',
-    'bg-warning text-dark': estado === 'en_proceso',
-    'bg-success': estado === 'finalizada'
-  }
-}
+// Helpers visuales
+const estadoClase = (e) => ({
+  'border-danger border-start border-4': e === 'pendiente',
+  'border-warning border-start border-4': e === 'en_proceso',
+  'border-success border-start border-4': e === 'finalizada'
+})
 
-function estadoLabel(estado) {
-  const map = { pendiente: 'Pendiente', en_proceso: 'En proceso', finalizada: 'Finalizada' }
-  return map[estado] || estado
-}
+const badgeEstado = (e) => ({
+  'bg-danger': e === 'pendiente',
+  'bg-warning text-dark': e === 'en_proceso',
+  'bg-success': e === 'finalizada'
+})
+
+const estadoLabel = (e) => ({ pendiente: 'Pendiente', en_proceso: 'En proceso', finalizada: 'Finalizada' }[e] || e)
 
 function nombreEmpleado(id) {
-  if (!id || !empleados) return 'Sin asignar'
+  if (!id || !empleados?.value) return 'Sin asignar'
   const emp = empleados.value.find(e => e.id === Number(id))
-  return emp ? `${emp.nombre} ${emp.apellidos}` : 'Sin asignar'
+  return emp ? `${emp.nombre} ${emp.apellidos}` : 'ID no válido'
 }
 
-// ── Búsqueda de empleado por ID ─────────────────────────────────────
+// Lógica de búsqueda
 function buscarEmpleado() {
-  if (!form.empleadoId) {
-    empleadoEncontrado.value = null
-    return
-  }
+  if (!form.empleadoId) return
   const emp = empleados.value.find(e => e.id === Number(form.empleadoId))
   if (emp) {
     empleadoEncontrado.value = true
     nombreEmpleadoEncontrado.value = `${emp.nombre} ${emp.apellidos}`
   } else {
     empleadoEncontrado.value = false
-    nombreEmpleadoEncontrado.value = ''
-    Swal.fire({
-      icon: 'error',
-      title: 'Empleado no encontrado',
-      text: `No existe ningún empleado con ID ${form.empleadoId}.`,
-      confirmButtonText: 'Entendido'
-    })
+    Swal.fire({ icon: 'error', title: 'Error', text: 'Empleado no encontrado' })
     form.empleadoId = null
   }
 }
@@ -300,90 +246,43 @@ function resetBusquedaEmpleado() {
   nombreEmpleadoEncontrado.value = ''
 }
 
-// ── Validación ──────────────────────────────────────────────────────
-function validarFormulario() {
-  errores.titulo = ''
-  errores.fecha  = ''
-  errores.estado = ''
-  let valido = true
-
-  if (!form.titulo) {
-    errores.titulo = 'El título es obligatorio.'
-    valido = false
-  }
-  if (!form.fecha) {
-    errores.fecha = 'La fecha es obligatoria.'
-    valido = false
-  }
-  if (!form.estado) {
-    errores.estado = 'El estado es obligatorio.'
-    valido = false
-  }
-  return valido
+// CRUD
+function validar() {
+  errores.titulo = form.titulo ? '' : 'El título es obligatorio'
+  errores.fecha = form.fecha ? '' : 'La fecha es obligatoria'
+  errores.estado = form.estado ? '' : 'El estado es obligatorio'
+  return !errores.titulo && !errores.fecha && !errores.estado
 }
 
-// ── CRUD ────────────────────────────────────────────────────────────
 function addTarea() {
-  if (!validarFormulario()) return
-
+  if (!validar()) return
   if (tareaSeleccionadaId.value) {
-    const index = tareas.value.findIndex(t => t.id === tareaSeleccionadaId.value)
-    if (index !== -1) {
-      tareas.value[index] = { id: tareaSeleccionadaId.value, ...form }
-    }
+    const idx = tareas.value.findIndex(t => t.id === tareaSeleccionadaId.value)
+    if (idx !== -1) tareas.value[idx] = { ...form, id: tareaSeleccionadaId.value }
   } else {
-    tareas.value.push({ id: Date.now(), ...form })
+    tareas.value.push({ ...form, id: Date.now() })
   }
-
   resetFormulario()
 }
 
 function selTarea(tarea) {
   tareaSeleccionadaId.value = tarea.id
-  Object.assign(form, {
-    titulo:      tarea.titulo,
-    descripcion: tarea.descripcion,
-    fecha:       tarea.fecha,
-    estado:      tarea.estado,
-    prioridad:   tarea.prioridad,
-    empleadoId:  tarea.empleadoId
-  })
-  // Restaurar estado de búsqueda si había empleado
-  if (tarea.empleadoId) {
-    const emp = empleados.value.find(e => e.id === Number(tarea.empleadoId))
-    if (emp) {
-      empleadoEncontrado.value = true
-      nombreEmpleadoEncontrado.value = `${emp.nombre} ${emp.apellidos}`
-    }
-  }
+  Object.assign(form, { ...tarea })
+  if (tarea.empleadoId) buscarEmpleado()
 }
 
 function delTarea(id) {
-  tareas.value = tareas.value.filter(t => t.id !== id)
-  if (tareaSeleccionadaId.value === id) resetFormulario()
+  const idx = tareas.value.findIndex(t => t.id === id)
+  if (idx !== -1) {
+    tareas.value.splice(idx, 1)
+    if (tareaSeleccionadaId.value === id) resetFormulario()
+  }
 }
 
 function resetFormulario() {
   tareaSeleccionadaId.value = null
-  empleadoEncontrado.value  = null
-  nombreEmpleadoEncontrado.value = ''
-  Object.assign(form, {
-    titulo: '', descripcion: '', fecha: '',
-    estado: '', prioridad: 'media', empleadoId: null
-  })
-  errores.titulo = ''
-  errores.fecha  = ''
-  errores.estado = ''
+  resetBusquedaEmpleado()
+  Object.assign(form, { titulo: '', descripcion: '', fecha: '', estado: '', prioridad: 'media', empleadoId: null })
+  Object.keys(errores).forEach(k => errores[k] = '')
 }
 </script>
-
-<style scoped>
-.card {
-  border: none;
-  border-radius: 1rem;
-}
-.card-header {
-  border-top-left-radius: 1rem;
-  border-top-right-radius: 1rem;
-}
-</style>
