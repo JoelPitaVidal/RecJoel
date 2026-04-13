@@ -1,7 +1,6 @@
 <template>
   <section class="container py-4">
     <div class="row g-4">
-      <!-- Formulario -->
       <div class="col-12 col-lg-5">
         <div class="card shadow-sm h-100">
           <div class="card-header bg-primary text-white">
@@ -75,7 +74,7 @@
 
               <div class="d-flex gap-2 flex-wrap">
                 <button type="submit" class="btn btn-primary">
-                  {{ empleadoSeleccionadoId ? 'Guardar cambios' : 'Añadir empleado' }}
+                  {{ empleadoSeleccionadoId ? 'Guardar' : 'Añadir' }}
                 </button>
                 <button
                   type="button"
@@ -90,19 +89,16 @@
         </div>
       </div>
 
-      <!-- Listado -->
       <div class="col-12 col-lg-7">
         <div class="card shadow-sm h-100">
           <div
             class="card-header bg-dark text-white d-flex justify-content-between align-items-center"
           >
             <h2 class="h5 mb-0">Listado de empleados</h2>
-            <!-- Añadido check de seguridad para empleados.length -->
             <span class="badge bg-light text-dark" v-if="empleados">{{ empleados.length }}</span>
           </div>
 
           <div class="card-body">
-            <!-- Check de seguridad para evitar errores si inject falla -->
             <div v-if="!empleados" class="alert alert-danger">
               Error: No se pudo cargar la lista de empleados.
             </div>
@@ -154,8 +150,8 @@
 
 <script setup>
 import { reactive, ref, inject } from 'vue'
+import Swal from 'sweetalert2' // Importamos SweetAlert2
 
-// Inyectamos el array. Es vital que en App.vue esté como provide('empleados', ref([]))
 const empleados = inject('empleados')
 
 const form = reactive({
@@ -183,20 +179,38 @@ function addEmpleado() {
   if (!validarFormulario()) return
 
   if (empleadoSeleccionadoId.value) {
-    // EDITAR: Buscamos el índice y actualizamos los campos uno a uno
+    // EDITAR
     const index = empleados.value.findIndex(e => e.id === empleadoSeleccionadoId.value)
     if (index !== -1) {
       empleados.value[index] = { 
-        ...empleados.value[index], // Mantener campos que no están en el form si los hubiera
+        ...empleados.value[index], 
         ...form, 
         id: empleadoSeleccionadoId.value 
       }
+      
+      // Mensaje de éxito al editar
+      Swal.fire({
+        title: '¡Actualizado!',
+        text: 'Los datos del empleado se han modificado correctamente.',
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false
+      })
     }
   } else {
-    // AÑADIR: Nuevo objeto al array
+    // AÑADIR
     empleados.value.push({
       ...form,
-      id: Date.now() // Generamos ID numérico
+      id: Date.now()
+    })
+
+    // Mensaje de éxito al añadir
+    Swal.fire({
+      title: '¡Guardado!',
+      text: 'El nuevo empleado ha sido registrado.',
+      icon: 'success',
+      timer: 2000,
+      showConfirmButton: false
     })
   }
   resetFormulario()
@@ -204,18 +218,31 @@ function addEmpleado() {
 
 function selEmpleado(empleado) {
   empleadoSeleccionadoId.value = empleado.id
-  // Usamos una copia para no modificar el objeto del listado en tiempo real mientras escribimos
   Object.assign(form, { ...empleado })
 }
 
 function delEmpleado(id) {
-  // CORRECCIÓN CRÍTICA: No reasignar empleados.value directamente si da error de constante.
-  // Usamos findIndex + splice para modificar el array original inyectado.
-  const index = empleados.value.findIndex(e => e.id === id)
-  if (index !== -1) {
-    empleados.value.splice(index, 1)
-    if (empleadoSeleccionadoId.value === id) resetFormulario()
-  }
+  // Opcional: Añadir confirmación antes de eliminar (muy recomendado para la Entrega 3)
+  Swal.fire({
+    title: '¿Estás seguro?',
+    text: "Esta acción no se puede deshacer",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'Sí, eliminar',
+    cancelButtonText: 'Cancelar'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      const index = empleados.value.findIndex(e => e.id === id)
+      if (index !== -1) {
+        empleados.value.splice(index, 1)
+        if (empleadoSeleccionadoId.value === id) resetFormulario()
+        
+        Swal.fire('Eliminado', 'El empleado ha sido borrado.', 'success')
+      }
+    }
+  })
 }
 
 function resetFormulario() {

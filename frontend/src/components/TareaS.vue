@@ -113,7 +113,7 @@
 
               <div class="d-flex gap-2 flex-wrap">
                 <button type="submit" class="btn btn-primary">
-                  {{ tareaSeleccionadaId ? 'Guardar cambios' : 'Añadir tarea' }}
+                  {{ tareaSeleccionadaId ? 'Guardar' : 'Añadir' }}
                 </button>
                 <button type="button" class="btn btn-outline-secondary" @click="resetFormulario">
                   Limpiar
