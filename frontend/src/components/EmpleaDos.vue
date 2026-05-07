@@ -1,6 +1,8 @@
 <template>
   <section class="container py-4">
     <div class="row g-4">
+
+      <!-- FORMULARIO -->
       <div class="col-12 col-lg-5">
         <div class="card shadow-sm h-100">
           <div class="card-header bg-primary text-white">
@@ -13,52 +15,24 @@
             <form @submit.prevent="addEmpleado" class="d-flex flex-column gap-3">
               <div>
                 <label for="nombre" class="form-label">Nombre *</label>
-                <input
-                  id="nombre"
-                  v-model.trim="form.nombre"
-                  type="text"
-                  class="form-control"
-                  placeholder="Introduce el nombre"
-                />
-                <small v-if="errores.nombre" class="text-danger">
-                  {{ errores.nombre }}
-                </small>
+                <input id="nombre" v-model.trim="form.nombre" type="text" class="form-control" placeholder="Introduce el nombre" />
+                <small v-if="errores.nombre" class="text-danger">{{ errores.nombre }}</small>
               </div>
 
               <div>
                 <label for="apellidos" class="form-label">Apellidos</label>
-                <input
-                  id="apellidos"
-                  v-model.trim="form.apellidos"
-                  type="text"
-                  class="form-control"
-                  placeholder="Introduce los apellidos"
-                />
+                <input id="apellidos" v-model.trim="form.apellidos" type="text" class="form-control" placeholder="Introduce los apellidos" />
               </div>
 
               <div>
                 <label for="email" class="form-label">Email *</label>
-                <input
-                  id="email"
-                  v-model.trim="form.email"
-                  type="email"
-                  class="form-control"
-                  placeholder="correo@empresa.com"
-                />
-                <small v-if="errores.email" class="text-danger">
-                  {{ errores.email }}
-                </small>
+                <input id="email" v-model.trim="form.email" type="email" class="form-control" placeholder="correo@empresa.com" />
+                <small v-if="errores.email" class="text-danger">{{ errores.email }}</small>
               </div>
 
               <div>
                 <label for="movil" class="form-label">Móvil</label>
-                <input
-                  id="movil"
-                  v-model.trim="form.movil"
-                  type="text"
-                  class="form-control"
-                  placeholder="600123123"
-                />
+                <input id="movil" v-model.trim="form.movil" type="text" class="form-control" placeholder="600123123" />
               </div>
 
               <div>
@@ -73,14 +47,10 @@
               </div>
 
               <div class="d-flex gap-2 flex-wrap">
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary" :disabled="cargando">
                   {{ empleadoSeleccionadoId ? 'Guardar' : 'Añadir' }}
                 </button>
-                <button
-                  type="button"
-                  class="btn btn-outline-secondary"
-                  @click="resetFormulario"
-                >
+                <button type="button" class="btn btn-outline-secondary" @click="resetFormulario">
                   Limpiar
                 </button>
               </div>
@@ -89,19 +59,16 @@
         </div>
       </div>
 
+      <!-- LISTADO -->
       <div class="col-12 col-lg-7">
         <div class="card shadow-sm h-100">
-          <div
-            class="card-header bg-dark text-white d-flex justify-content-between align-items-center"
-          >
+          <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
             <h2 class="h5 mb-0">Listado de empleados</h2>
-            <span class="badge bg-light text-dark" v-if="empleados">{{ empleados.length }}</span>
+            <span class="badge bg-light text-dark">{{ empleados.length }}</span>
           </div>
 
           <div class="card-body">
-            <div v-if="!empleados" class="alert alert-danger">
-              Error: No se pudo cargar la lista de empleados.
-            </div>
+            <div v-if="errorCarga" class="alert alert-danger">{{ errorCarga }}</div>
 
             <div v-else-if="empleados.length === 0" class="alert alert-info mb-0">
               No hay empleados todavía.
@@ -118,143 +85,147 @@
                   <p class="mb-1 text-muted small"><strong>ID:</strong> {{ empleado.id }}</p>
                   <p class="mb-1"><strong>Email:</strong> {{ empleado.email }}</p>
                   <p class="mb-1"><strong>Móvil:</strong> {{ empleado.movil || 'Sin móvil' }}</p>
-                  <p class="mb-0 text-capitalize">
-                    <strong>Puesto:</strong> {{ empleado.puesto || 'Sin asignar' }}
-                  </p>
+                  <p class="mb-0 text-capitalize"><strong>Puesto:</strong> {{ empleado.puesto || 'Sin asignar' }}</p>
                 </div>
 
                 <div class="d-flex gap-2 flex-wrap">
-                  <button
-                    type="button"
-                    class="btn btn-sm btn-outline-primary"
-                    @click="selEmpleado(empleado)"
-                  >
-                    Cargar
-                  </button>
-                  <button
-                    type="button"
-                    class="btn btn-sm btn-outline-danger"
-                    @click="delEmpleado(empleado.id)"
-                  >
-                    Eliminar
-                  </button>
+                  <button class="btn btn-sm btn-outline-primary" @click="selEmpleado(empleado)">Cargar</button>
+                  <button class="btn btn-sm btn-outline-danger" @click="delEmpleado(empleado.id)">Eliminar</button>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
+
     </div>
   </section>
 </template>
 
 <script setup>
-import { reactive, ref, inject } from 'vue'
-import Swal from 'sweetalert2' // Importamos SweetAlert2
+import { reactive, ref, onMounted } from 'vue'
+import Swal from 'sweetalert2'
 
-const empleados = inject('empleados')
+// ── Configuración ────────────────────────────────────────────────────
+const API = 'http://localhost:3000/empleados'
 
-const form = reactive({
-  id: null,
-  apellidos: '',
-  nombre: '',
-  email: '',
-  movil: '',
-  puesto: ''
-})
+// ── Estado ───────────────────────────────────────────────────────────
+const empleados = ref([])
+const cargando  = ref(false)
+const errorCarga = ref('')
 
+const form = reactive({ apellidos: '', nombre: '', email: '', movil: '', puesto: '' })
 const errores = reactive({ nombre: '', email: '' })
 const empleadoSeleccionadoId = ref(null)
 
+// ── Al montar el componente, cargamos desde el servidor ──────────────
+onMounted(getEmpleado)
+
+// ── GET: listar todos ────────────────────────────────────────────────
+async function getEmpleado() {
+  cargando.value  = true
+  errorCarga.value = ''
+  try {
+    const res = await fetch(API)
+    if (!res.ok) throw new Error(`Error ${res.status}`)
+    empleados.value = await res.json()
+  } catch (err) {
+    errorCarga.value = 'No se pudo conectar con el servidor. ¿Está JSON Server en marcha en el puerto 3000?'
+    console.error(err)
+  } finally {
+    cargando.value = false
+  }
+}
+
+// ── Validación ───────────────────────────────────────────────────────
 function validarFormulario() {
   errores.nombre = ''
-  errores.email = ''
+  errores.email  = ''
   let valido = true
   if (!form.nombre) { errores.nombre = 'El nombre es obligatorio.'; valido = false }
   if (!form.email)  { errores.email  = 'El email es obligatorio.';  valido = false }
   return valido
 }
 
-function addEmpleado() {
+// ── POST / PUT: añadir o editar ──────────────────────────────────────
+async function addEmpleado() {
   if (!validarFormulario()) return
 
-  if (empleadoSeleccionadoId.value) {
-    // EDITAR
-    const index = empleados.value.findIndex(e => e.id === empleadoSeleccionadoId.value)
-    if (index !== -1) {
-      empleados.value[index] = { 
-        ...empleados.value[index], 
-        ...form, 
-        id: empleadoSeleccionadoId.value 
-      }
-      
-      // Mensaje de éxito al editar
-      Swal.fire({
-        title: '¡Actualizado!',
-        text: 'Los datos del empleado se han modificado correctamente.',
-        icon: 'success',
-        timer: 2000,
-        showConfirmButton: false
+  Swal.fire({ title: 'Guardando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() })
+
+  try {
+    if (empleadoSeleccionadoId.value) {
+      // PUT → editar empleado existente
+      const res = await fetch(`${API}/${empleadoSeleccionadoId.value}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, id: empleadoSeleccionadoId.value })
       })
+      if (!res.ok) throw new Error(`Error ${res.status}`)
+      Swal.fire({ title: '¡Actualizado!', icon: 'success', timer: 1800, showConfirmButton: false })
+    } else {
+      // POST → crear nuevo empleado
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      })
+      if (!res.ok) throw new Error(`Error ${res.status}`)
+      Swal.fire({ title: '¡Guardado!', icon: 'success', timer: 1800, showConfirmButton: false })
     }
-  } else {
-    // AÑADIR
-    empleados.value.push({
-      ...form,
-      id: Date.now()
-    })
 
-    // Mensaje de éxito al añadir
-    Swal.fire({
-      title: '¡Guardado!',
-      text: 'El nuevo empleado ha sido registrado.',
-      icon: 'success',
-      timer: 2000,
-      showConfirmButton: false
-    })
+    await getEmpleado()
+    resetFormulario()
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo guardar el empleado.' })
+    console.error(err)
   }
-  resetFormulario()
 }
 
-function selEmpleado(empleado) {
-  empleadoSeleccionadoId.value = empleado.id
-  Object.assign(form, { ...empleado })
-}
-
-function delEmpleado(id) {
-  // Opcional: Añadir confirmación antes de eliminar (muy recomendado para la Entrega 3)
-  Swal.fire({
+// ── DELETE: eliminar ─────────────────────────────────────────────────
+async function delEmpleado(id) {
+  const { isConfirmed } = await Swal.fire({
     title: '¿Estás seguro?',
-    text: "Esta acción no se puede deshacer",
+    text: 'Esta acción no se puede deshacer.',
     icon: 'warning',
     showCancelButton: true,
     confirmButtonColor: '#d33',
     cancelButtonColor: '#3085d6',
     confirmButtonText: 'Sí, eliminar',
     cancelButtonText: 'Cancelar'
-  }).then((result) => {
-    if (result.isConfirmed) {
-      const index = empleados.value.findIndex(e => e.id === id)
-      if (index !== -1) {
-        empleados.value.splice(index, 1)
-        if (empleadoSeleccionadoId.value === id) resetFormulario()
-        
-        Swal.fire('Eliminado', 'El empleado ha sido borrado.', 'success')
-      }
-    }
+  })
+  if (!isConfirmed) return
+
+  Swal.fire({ title: 'Eliminando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() })
+
+  try {
+    const res = await fetch(`${API}/${id}`, { method: 'DELETE' })
+    if (!res.ok) throw new Error(`Error ${res.status}`)
+    if (empleadoSeleccionadoId.value === id) resetFormulario()
+    await getEmpleado()
+    Swal.fire({ title: 'Eliminado', icon: 'success', timer: 1500, showConfirmButton: false })
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo eliminar el empleado.' })
+    console.error(err)
+  }
+}
+
+// ── Cargar empleado en formulario ────────────────────────────────────
+function selEmpleado(empleado) {
+  empleadoSeleccionadoId.value = empleado.id
+  Object.assign(form, {
+    apellidos: empleado.apellidos,
+    nombre:    empleado.nombre,
+    email:     empleado.email,
+    movil:     empleado.movil,
+    puesto:    empleado.puesto
   })
 }
 
+// ── Reset ─────────────────────────────────────────────────────────────
 function resetFormulario() {
   empleadoSeleccionadoId.value = null
-  Object.assign(form, { 
-    id: null, 
-    apellidos: '', 
-    nombre: '', 
-    email: '', 
-    movil: '', 
-    puesto: '' 
-  })
+  Object.assign(form, { apellidos: '', nombre: '', email: '', movil: '', puesto: '' })
   errores.nombre = ''
   errores.email  = ''
 }

@@ -1,0 +1,21 @@
+{
+  "empleados": [
+    {
+      "id": 1,
+      "apellidos": "Pérez Gómez",
+      "nombre": "Ana",
+      "email": "ana@empresa.com",
+      "movil": "600111222",
+      "puesto": "rrhh"
+    },
+    {
+      "id": 2,
+      "apellidos": "López Ruiz",
+      "nombre": "Carlos",
+      "email": "carlos@empresa.com",
+      "movil": "600333444",
+      "puesto": "ventas"
+    }
+  ],
+  "tareas": []
+}

@@ -17,37 +17,20 @@
               <!-- Título -->
               <div>
                 <label for="titulo" class="form-label">Título *</label>
-                <input
-                  id="titulo"
-                  v-model.trim="form.titulo"
-                  type="text"
-                  class="form-control"
-                  placeholder="Título de la tarea"
-                />
+                <input id="titulo" v-model.trim="form.titulo" type="text" class="form-control" placeholder="Título de la tarea" />
                 <small v-if="errores.titulo" class="text-danger">{{ errores.titulo }}</small>
               </div>
 
               <!-- Descripción -->
               <div>
                 <label for="descripcion" class="form-label">Descripción</label>
-                <textarea
-                  id="descripcion"
-                  v-model.trim="form.descripcion"
-                  class="form-control"
-                  rows="3"
-                  placeholder="Describe la tarea..."
-                ></textarea>
+                <textarea id="descripcion" v-model.trim="form.descripcion" class="form-control" rows="3" placeholder="Describe la tarea..."></textarea>
               </div>
 
               <!-- Fecha -->
               <div>
                 <label for="fecha" class="form-label">Fecha *</label>
-                <input
-                  id="fecha"
-                  v-model="form.fecha"
-                  type="date"
-                  class="form-control"
-                />
+                <input id="fecha" v-model="form.fecha" type="date" class="form-control" />
                 <small v-if="errores.fecha" class="text-danger">{{ errores.fecha }}</small>
               </div>
 
@@ -68,13 +51,7 @@
                 <label class="form-label">Prioridad</label>
                 <div class="d-flex gap-3">
                   <div class="form-check" v-for="prio in ['baja', 'media', 'alta']" :key="prio">
-                    <input
-                      class="form-check-input"
-                      type="radio"
-                      :id="'prio' + prio"
-                      :value="prio"
-                      v-model="form.prioridad"
-                    />
+                    <input class="form-check-input" type="radio" :id="'prio' + prio" :value="prio" v-model="form.prioridad" />
                     <label class="form-check-label text-capitalize" :for="'prio' + prio">
                       {{ prio === 'baja' ? '🟢' : prio === 'media' ? '🟡' : '🔴' }} {{ prio }}
                     </label>
@@ -82,29 +59,34 @@
                 </div>
               </div>
 
-              <!-- Empleado (Búsqueda por ID) -->
+              <!-- Empleado (select con datos del servidor) -->
               <div>
-                <label for="empleadoId" class="form-label">ID Empleado</label>
+                <label for="empleadoSelect" class="form-label">Empleado</label>
+                <select id="empleadoSelect" v-model="form.empleadoId" class="form-select">
+                  <option :value="null">Sin asignar</option>
+                  <option v-for="emp in empleados" :key="emp.id" :value="emp.id">
+                    [{{ emp.id }}] {{ emp.nombre }} {{ emp.apellidos }}
+                  </option>
+                </select>
+              </div>
+
+              <!-- Búsqueda por ID (requerimiento del enunciado) -->
+              <div>
+                <label for="empleadoId" class="form-label">O busca por ID de empleado</label>
                 <div class="input-group">
                   <input
                     id="empleadoId"
-                    v-model="form.empleadoId"
+                    v-model="busquedaId"
                     type="number"
                     class="form-control"
                     :class="estiloInputEmpleado"
                     placeholder="ID del empleado"
-                    @input="resetBusquedaEmpleado"
+                    @input="resetBusqueda"
                   />
-                  <button
-                    type="button"
-                    class="btn btn-outline-secondary"
-                    @click="buscarEmpleado"
-                  >
-                    🔍
-                  </button>
+                  <button type="button" class="btn btn-outline-secondary" @click="buscarEmpleadoPorId">🔍</button>
                 </div>
                 <small v-if="empleadoEncontrado === true" class="text-success fw-bold">
-                  ✅ {{ nombreEmpleadoEncontrado }}
+                  ✅ {{ nombreEmpleadoBuscado }}
                 </small>
                 <small v-if="empleadoEncontrado === false" class="text-danger">
                   ❌ Empleado no encontrado
@@ -112,12 +94,10 @@
               </div>
 
               <div class="d-flex gap-2 flex-wrap">
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary" :disabled="cargando">
                   {{ tareaSeleccionadaId ? 'Guardar' : 'Añadir' }}
                 </button>
-                <button type="button" class="btn btn-outline-secondary" @click="resetFormulario">
-                  Limpiar
-                </button>
+                <button type="button" class="btn btn-outline-secondary" @click="resetFormulario">Limpiar</button>
               </div>
 
             </form>
@@ -134,7 +114,9 @@
           </div>
 
           <div class="card-body">
-            <div v-if="tareas.length === 0" class="alert alert-info mb-0">
+            <div v-if="errorCarga" class="alert alert-danger">{{ errorCarga }}</div>
+
+            <div v-else-if="tareas.length === 0" class="alert alert-info mb-0">
               No hay tareas todavía.
             </div>
 
@@ -179,110 +161,213 @@
 </template>
 
 <script setup>
-import { reactive, ref, inject, computed } from 'vue'
+import { reactive, ref, computed, onMounted } from 'vue'
 import Swal from 'sweetalert2'
 
-const empleados = inject('empleados')
-const tareas = ref([]) // Array local de tareas para esta entrega
+// ── Configuración ────────────────────────────────────────────────────
+const API_TAREAS    = 'http://localhost:3000/tareas'
+const API_EMPLEADOS = 'http://localhost:3000/empleados'
+
+// ── Estado ───────────────────────────────────────────────────────────
+const tareas    = ref([])
+const empleados = ref([])  // Se cargan del servidor para el select y para resolver nombres
+const cargando  = ref(false)
+const errorCarga = ref('')
 
 const form = reactive({
-  titulo: '',
+  titulo:      '',
   descripcion: '',
-  fecha: '',
-  estado: '',
-  prioridad: 'media',
-  empleadoId: null
+  fecha:       '',
+  estado:      '',
+  prioridad:   'media',
+  empleadoId:  null
 })
 
 const errores = reactive({ titulo: '', fecha: '', estado: '' })
 const tareaSeleccionadaId = ref(null)
-const empleadoEncontrado = ref(null) 
-const nombreEmpleadoEncontrado = ref('')
 
-// Computed para el color del input de empleado (Amarillo si existe, Rojo si no)
-const estiloInputEmpleado = computed(() => {
-  if (empleadoEncontrado.value === true) return 'bg-warning bg-opacity-25 border-warning'
-  if (empleadoEncontrado.value === false) return 'border-danger'
-  return ''
+// Búsqueda manual por ID
+const busquedaId = ref(null)
+const empleadoEncontrado  = ref(null)
+const nombreEmpleadoBuscado = ref('')
+
+// ── Al montar: cargamos tareas y empleados ───────────────────────────
+onMounted(async () => {
+  await Promise.all([getTareas(), getEmpleados()])
 })
 
-// Helpers visuales
+// ── GET: tareas ───────────────────────────────────────────────────────
+async function getTareas() {
+  errorCarga.value = ''
+  try {
+    const res = await fetch(API_TAREAS)
+    if (!res.ok) throw new Error(`Error ${res.status}`)
+    tareas.value = await res.json()
+  } catch (err) {
+    errorCarga.value = 'No se pudo conectar con el servidor. ¿Está JSON Server en marcha?'
+    console.error(err)
+  }
+}
+
+// ── GET: empleados (para el select y para resolver nombres) ──────────
+async function getEmpleados() {
+  try {
+    const res = await fetch(API_EMPLEADOS)
+    if (!res.ok) throw new Error(`Error ${res.status}`)
+    empleados.value = await res.json()
+  } catch (err) {
+    console.error('Error cargando empleados:', err)
+  }
+}
+
+// ── Helpers de nombre y estilo ───────────────────────────────────────
+function nombreEmpleado(id) {
+  if (!id) return 'Sin asignar'
+  const emp = empleados.value.find(e => e.id === Number(id))
+  return emp ? `${emp.nombre} ${emp.apellidos}` : 'ID no válido'
+}
+
 const estadoClase = (e) => ({
-  'border-danger border-start border-4': e === 'pendiente',
+  'border-danger border-start border-4':  e === 'pendiente',
   'border-warning border-start border-4': e === 'en_proceso',
   'border-success border-start border-4': e === 'finalizada'
 })
 
 const badgeEstado = (e) => ({
-  'bg-danger': e === 'pendiente',
+  'bg-danger':           e === 'pendiente',
   'bg-warning text-dark': e === 'en_proceso',
-  'bg-success': e === 'finalizada'
+  'bg-success':          e === 'finalizada'
 })
 
-const estadoLabel = (e) => ({ pendiente: 'Pendiente', en_proceso: 'En proceso', finalizada: 'Finalizada' }[e] || e)
+const estadoLabel = (e) =>
+  ({ pendiente: 'Pendiente', en_proceso: 'En proceso', finalizada: 'Finalizada' }[e] || e)
 
-function nombreEmpleado(id) {
-  if (!id || !empleados?.value) return 'Sin asignar'
-  const emp = empleados.value.find(e => e.id === Number(id))
-  return emp ? `${emp.nombre} ${emp.apellidos}` : 'ID no válido'
-}
+const estiloInputEmpleado = computed(() => {
+  if (empleadoEncontrado.value === true)  return 'bg-warning bg-opacity-25 border-warning'
+  if (empleadoEncontrado.value === false) return 'border-danger'
+  return ''
+})
 
-// Lógica de búsqueda
-function buscarEmpleado() {
-  if (!form.empleadoId) return
-  const emp = empleados.value.find(e => e.id === Number(form.empleadoId))
+// ── Búsqueda manual por ID ───────────────────────────────────────────
+function buscarEmpleadoPorId() {
+  if (!busquedaId.value) return
+  const emp = empleados.value.find(e => e.id === Number(busquedaId.value))
   if (emp) {
-    empleadoEncontrado.value = true
-    nombreEmpleadoEncontrado.value = `${emp.nombre} ${emp.apellidos}`
+    empleadoEncontrado.value   = true
+    nombreEmpleadoBuscado.value = `${emp.nombre} ${emp.apellidos}`
+    form.empleadoId = emp.id   // Sincroniza con el select
   } else {
     empleadoEncontrado.value = false
-    Swal.fire({ icon: 'error', title: 'Error', text: 'Empleado no encontrado' })
-    form.empleadoId = null
+    Swal.fire({ icon: 'error', title: 'Error', text: `No existe ningún empleado con ID ${busquedaId.value}.` })
+    busquedaId.value = null
   }
 }
 
-function resetBusquedaEmpleado() {
-  empleadoEncontrado.value = null
-  nombreEmpleadoEncontrado.value = ''
+function resetBusqueda() {
+  empleadoEncontrado.value   = null
+  nombreEmpleadoBuscado.value = ''
 }
 
-// CRUD
+// ── Validación ───────────────────────────────────────────────────────
 function validar() {
-  errores.titulo = form.titulo ? '' : 'El título es obligatorio'
-  errores.fecha = form.fecha ? '' : 'La fecha es obligatoria'
-  errores.estado = form.estado ? '' : 'El estado es obligatorio'
+  errores.titulo = form.titulo ? '' : 'El título es obligatorio.'
+  errores.fecha  = form.fecha  ? '' : 'La fecha es obligatoria.'
+  errores.estado = form.estado ? '' : 'El estado es obligatorio.'
   return !errores.titulo && !errores.fecha && !errores.estado
 }
 
-function addTarea() {
+// ── POST / PUT: añadir o editar tarea ────────────────────────────────
+async function addTarea() {
   if (!validar()) return
-  if (tareaSeleccionadaId.value) {
-    const idx = tareas.value.findIndex(t => t.id === tareaSeleccionadaId.value)
-    if (idx !== -1) tareas.value[idx] = { ...form, id: tareaSeleccionadaId.value }
-  } else {
-    tareas.value.push({ ...form, id: Date.now() })
+
+  Swal.fire({ title: 'Guardando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() })
+
+  try {
+    if (tareaSeleccionadaId.value) {
+      // PUT → editar
+      const res = await fetch(`${API_TAREAS}/${tareaSeleccionadaId.value}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, id: tareaSeleccionadaId.value })
+      })
+      if (!res.ok) throw new Error(`Error ${res.status}`)
+      Swal.fire({ title: '¡Actualizado!', icon: 'success', timer: 1800, showConfirmButton: false })
+    } else {
+      // POST → crear
+      const res = await fetch(API_TAREAS, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      })
+      if (!res.ok) throw new Error(`Error ${res.status}`)
+      Swal.fire({ title: '¡Guardado!', icon: 'success', timer: 1800, showConfirmButton: false })
+    }
+
+    await getTareas()
+    resetFormulario()
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo guardar la tarea.' })
+    console.error(err)
   }
-  resetFormulario()
 }
 
+// ── DELETE: eliminar tarea ───────────────────────────────────────────
+async function delTarea(id) {
+  const { isConfirmed } = await Swal.fire({
+    title: '¿Eliminar tarea?',
+    text: 'Esta acción no se puede deshacer.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'Sí, eliminar',
+    cancelButtonText: 'Cancelar'
+  })
+  if (!isConfirmed) return
+
+  Swal.fire({ title: 'Eliminando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() })
+
+  try {
+    const res = await fetch(`${API_TAREAS}/${id}`, { method: 'DELETE' })
+    if (!res.ok) throw new Error(`Error ${res.status}`)
+    if (tareaSeleccionadaId.value === id) resetFormulario()
+    await getTareas()
+    Swal.fire({ title: 'Eliminada', icon: 'success', timer: 1500, showConfirmButton: false })
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo eliminar la tarea.' })
+    console.error(err)
+  }
+}
+
+// ── Cargar tarea en formulario ───────────────────────────────────────
 function selTarea(tarea) {
   tareaSeleccionadaId.value = tarea.id
-  Object.assign(form, { ...tarea })
-  if (tarea.empleadoId) buscarEmpleado()
-}
-
-function delTarea(id) {
-  const idx = tareas.value.findIndex(t => t.id === id)
-  if (idx !== -1) {
-    tareas.value.splice(idx, 1)
-    if (tareaSeleccionadaId.value === id) resetFormulario()
+  Object.assign(form, {
+    titulo:      tarea.titulo,
+    descripcion: tarea.descripcion,
+    fecha:       tarea.fecha,
+    estado:      tarea.estado,
+    prioridad:   tarea.prioridad,
+    empleadoId:  tarea.empleadoId
+  })
+  // Actualizar búsqueda manual si tenía empleado asignado
+  if (tarea.empleadoId) {
+    busquedaId.value = tarea.empleadoId
+    buscarEmpleadoPorId()
   }
 }
 
+// ── Reset ─────────────────────────────────────────────────────────────
 function resetFormulario() {
   tareaSeleccionadaId.value = null
-  resetBusquedaEmpleado()
+  busquedaId.value = null
+  resetBusqueda()
   Object.assign(form, { titulo: '', descripcion: '', fecha: '', estado: '', prioridad: 'media', empleadoId: null })
   Object.keys(errores).forEach(k => errores[k] = '')
 }
 </script>
+
+<style scoped>
+.card { border: none; border-radius: 1rem; }
+.card-header { border-top-left-radius: 1rem; border-top-right-radius: 1rem; }
+</style>
