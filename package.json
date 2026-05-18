@@ -3,15 +3,18 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
+"scripts": {
+  "dev": "vite",
+  "build": "vite build",
+  "preview": "vite preview",
+  "server": "json-server src/db.json --port 3000"
+},
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.2.0",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "sweetalert2": "^11.26.21",
     "vue": "^3.5.25",
     "vue-router": "^5.0.3"
@@ -20,11 +23,5 @@
     "@vitejs/plugin-vue": "^6.0.2",
     "json-server": "^1.0.0-beta.15",
     "vite": "^7.3.1"
-  },
-"scripts": {
-  "dev": "vite",
-  "build": "vite build",
-  "server": "json-server db.json --port 3000"
-}
-
+  }
 }
