@@ -85,7 +85,7 @@
                   <p class="mb-1 text-muted small"><strong>ID:</strong> {{ empleado.id }}</p>
                   <p class="mb-1"><strong>Email:</strong> {{ empleado.email }}</p>
                   <p class="mb-1"><strong>Móvil:</strong> {{ empleado.movil || 'Sin móvil' }}</p>
-                  <p class="mb-0 text-capitalize"><strong>Puesto:</strong> {{ empleado.puesto || 'Sin asignar' }}</p>
+                  <p class="mb-0"><strong>Puesto:</strong> {{ empleado.puesto || 'Sin asignar' }}</p>
                 </div>
 
                 <div class="d-flex gap-2 flex-wrap">
@@ -104,31 +104,30 @@
 
 <script setup>
 import { reactive, ref, onMounted } from 'vue'
+import axios from 'axios'
 import Swal from 'sweetalert2'
 
 // ── Configuración ────────────────────────────────────────────────────
 const API = 'http://localhost:3000/empleados'
 
 // ── Estado ───────────────────────────────────────────────────────────
-const empleados = ref([])
-const cargando  = ref(false)
+const empleados  = ref([])
+const cargando   = ref(false)
 const errorCarga = ref('')
 
 const form = reactive({ apellidos: '', nombre: '', email: '', movil: '', puesto: '' })
 const errores = reactive({ nombre: '', email: '' })
 const empleadoSeleccionadoId = ref(null)
 
-// ── Al montar el componente, cargamos desde el servidor ──────────────
 onMounted(getEmpleado)
 
-// ── GET: listar todos ────────────────────────────────────────────────
+// ── GET ───────────────────────────────────────────────────────────────
 async function getEmpleado() {
-  cargando.value  = true
+  cargando.value   = true
   errorCarga.value = ''
   try {
-    const res = await fetch(API)
-    if (!res.ok) throw new Error(`Error ${res.status}`)
-    empleados.value = await res.json()
+    const res = await axios.get(API)
+    empleados.value = res.data
   } catch (err) {
     errorCarga.value = 'No se pudo conectar con el servidor. ¿Está JSON Server en marcha en el puerto 3000?'
     console.error(err)
@@ -137,7 +136,7 @@ async function getEmpleado() {
   }
 }
 
-// ── Validación ───────────────────────────────────────────────────────
+// ── Validación ────────────────────────────────────────────────────────
 function validarFormulario() {
   errores.nombre = ''
   errores.email  = ''
@@ -147,7 +146,7 @@ function validarFormulario() {
   return valido
 }
 
-// ── POST / PUT: añadir o editar ──────────────────────────────────────
+// ── POST / PUT ────────────────────────────────────────────────────────
 async function addEmpleado() {
   if (!validarFormulario()) return
 
@@ -155,22 +154,15 @@ async function addEmpleado() {
 
   try {
     if (empleadoSeleccionadoId.value) {
-      // PUT → editar empleado existente
-      const res = await fetch(`${API}/${empleadoSeleccionadoId.value}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, id: empleadoSeleccionadoId.value })
+      // PUT → editar
+      await axios.put(`${API}/${empleadoSeleccionadoId.value}`, {
+        ...form,
+        id: empleadoSeleccionadoId.value
       })
-      if (!res.ok) throw new Error(`Error ${res.status}`)
       Swal.fire({ title: '¡Actualizado!', icon: 'success', timer: 1800, showConfirmButton: false })
     } else {
-      // POST → crear nuevo empleado
-      const res = await fetch(API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
-      })
-      if (!res.ok) throw new Error(`Error ${res.status}`)
+      // POST → crear
+      await axios.post(API, form)
       Swal.fire({ title: '¡Guardado!', icon: 'success', timer: 1800, showConfirmButton: false })
     }
 
@@ -182,25 +174,19 @@ async function addEmpleado() {
   }
 }
 
-// ── DELETE: eliminar ─────────────────────────────────────────────────
+// ── DELETE ────────────────────────────────────────────────────────────
 async function delEmpleado(id) {
   const { isConfirmed } = await Swal.fire({
-    title: '¿Estás seguro?',
-    text: 'Esta acción no se puede deshacer.',
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#d33',
-    cancelButtonColor: '#3085d6',
-    confirmButtonText: 'Sí, eliminar',
-    cancelButtonText: 'Cancelar'
+    title: '¿Estás seguro?', text: 'Esta acción no se puede deshacer.', icon: 'warning',
+    showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#3085d6',
+    confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar'
   })
   if (!isConfirmed) return
 
   Swal.fire({ title: 'Eliminando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() })
 
   try {
-    const res = await fetch(`${API}/${id}`, { method: 'DELETE' })
-    if (!res.ok) throw new Error(`Error ${res.status}`)
+    await axios.delete(`${API}/${id}`)
     if (empleadoSeleccionadoId.value === id) resetFormulario()
     await getEmpleado()
     Swal.fire({ title: 'Eliminado', icon: 'success', timer: 1500, showConfirmButton: false })
@@ -210,7 +196,7 @@ async function delEmpleado(id) {
   }
 }
 
-// ── Cargar empleado en formulario ────────────────────────────────────
+// ── Cargar en formulario ──────────────────────────────────────────────
 function selEmpleado(empleado) {
   empleadoSeleccionadoId.value = empleado.id
   Object.assign(form, {

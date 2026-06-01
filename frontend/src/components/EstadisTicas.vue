@@ -17,16 +17,10 @@
             <h2 class="h6 mb-0">👥 Empleados</h2>
           </div>
           <div class="card-body d-flex flex-column gap-2">
-            <p class="small text-muted mb-1">
-              Listado completo con ID, nombre, apellidos y móvil.
-            </p>
+            <p class="small text-muted mb-1">Listado completo con ID, nombre, apellidos y móvil.</p>
             <div class="mt-auto">
               <span class="badge bg-secondary mb-2">{{ totalEmpleados }} empleados</span>
-              <button
-                class="btn btn-primary w-100"
-                @click="descargar(generarPdfEmpleados)"
-                :disabled="cargando"
-              >
+              <button class="btn btn-primary w-100" @click="descargar(generarPdfEmpleados)" :disabled="cargando">
                 📄 Descargar PDF
               </button>
             </div>
@@ -41,16 +35,10 @@
             <h2 class="h6 mb-0">📋 Todas las Tareas</h2>
           </div>
           <div class="card-body d-flex flex-column gap-2">
-            <p class="small text-muted mb-1">
-              Listado completo: ID, título, prioridad, estado y empleado.
-            </p>
+            <p class="small text-muted mb-1">Listado completo: ID, título, prioridad, estado y empleado.</p>
             <div class="mt-auto">
               <span class="badge bg-secondary mb-2">{{ totalTareas }} tareas</span>
-              <button
-                class="btn btn-dark w-100"
-                @click="descargar(generarPdfTareas)"
-                :disabled="cargando"
-              >
+              <button class="btn btn-dark w-100" @click="descargar(generarPdfTareas)" :disabled="cargando">
                 📄 Descargar PDF
               </button>
             </div>
@@ -65,29 +53,15 @@
             <h2 class="h6 mb-0">⚡ Tareas por Prioridad</h2>
           </div>
           <div class="card-body d-flex flex-column gap-2">
-            <p class="small text-muted mb-1">
-              Filtra y descarga las tareas según su nivel de prioridad.
-            </p>
+            <p class="small text-muted mb-1">Filtra y descarga las tareas según su nivel de prioridad.</p>
             <div class="mt-auto d-flex flex-column gap-2">
-              <button
-                class="btn btn-success btn-sm"
-                @click="descargar(() => generarPdfTareasPorPrioridad('baja'))"
-                :disabled="cargando"
-              >
+              <button class="btn btn-success btn-sm" @click="descargar(() => generarPdfTareasPorPrioridad('baja'))" :disabled="cargando">
                 🟢 Prioridad Baja
               </button>
-              <button
-                class="btn btn-warning btn-sm"
-                @click="descargar(() => generarPdfTareasPorPrioridad('media'))"
-                :disabled="cargando"
-              >
+              <button class="btn btn-warning btn-sm" @click="descargar(() => generarPdfTareasPorPrioridad('media'))" :disabled="cargando">
                 🟡 Prioridad Media
               </button>
-              <button
-                class="btn btn-danger btn-sm"
-                @click="descargar(() => generarPdfTareasPorPrioridad('alta'))"
-                :disabled="cargando"
-              >
+              <button class="btn btn-danger btn-sm" @click="descargar(() => generarPdfTareasPorPrioridad('alta'))" :disabled="cargando">
                 🔴 Prioridad Alta
               </button>
             </div>
@@ -102,9 +76,7 @@
             <h2 class="h6 mb-0">👤 Tareas de un Empleado</h2>
           </div>
           <div class="card-body d-flex flex-column gap-2">
-            <p class="small text-muted mb-1">
-              Selecciona un empleado y descarga sus tareas asignadas.
-            </p>
+            <p class="small text-muted mb-1">Selecciona un empleado y descarga sus tareas asignadas.</p>
             <div class="mt-auto d-flex flex-column gap-2">
               <select v-model="empleadoSeleccionado" class="form-select form-select-sm">
                 <option :value="null">Selecciona un empleado</option>
@@ -170,6 +142,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import axios from 'axios'
 import Swal from 'sweetalert2'
 import {
   generarPdfEmpleados,
@@ -178,32 +151,28 @@ import {
   generarPdfTareasEmpleado
 } from '../pdfService.js'
 
-// ── Estado ───────────────────────────────────────────────────────────
-const empleados          = ref([])
-const tareas             = ref([])
+const empleados           = ref([])
+const tareas              = ref([])
 const empleadoSeleccionado = ref(null)
-const cargando           = ref(false)
+const cargando            = ref(false)
 
-// ── Carga inicial ────────────────────────────────────────────────────
 onMounted(async () => {
   try {
     const [resEmp, resTar] = await Promise.all([
-      fetch('http://localhost:3000/empleados'),
-      fetch('http://localhost:3000/tareas')
+      axios.get('http://localhost:3000/empleados'),
+      axios.get('http://localhost:3000/tareas')
     ])
-    empleados.value = await resEmp.json()
-    tareas.value    = await resTar.json()
+    empleados.value = resEmp.data
+    tareas.value    = resTar.data
   } catch {
     Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo conectar con el servidor.' })
   }
 })
 
-// ── Computed ─────────────────────────────────────────────────────────
-const totalEmpleados = computed(() => empleados.value.length)
-const totalTareas    = computed(() => tareas.value.length)
+const totalEmpleados  = computed(() => empleados.value.length)
+const totalTareas     = computed(() => tareas.value.length)
 const tareasPorEstado = (estado) => tareas.value.filter(t => t.estado === estado).length
 
-// ── Wrapper con indicador de carga ───────────────────────────────────
 async function descargar(fn) {
   cargando.value = true
   Swal.fire({ title: 'Generando PDF...', allowOutsideClick: false, didOpen: () => Swal.showLoading() })

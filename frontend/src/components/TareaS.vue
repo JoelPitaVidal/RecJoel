@@ -14,27 +14,23 @@
           <div class="card-body">
             <form @submit.prevent="addTarea" class="d-flex flex-column gap-3">
 
-              <!-- Título -->
               <div>
                 <label for="titulo" class="form-label">Título *</label>
                 <input id="titulo" v-model.trim="form.titulo" type="text" class="form-control" placeholder="Título de la tarea" />
                 <small v-if="errores.titulo" class="text-danger">{{ errores.titulo }}</small>
               </div>
 
-              <!-- Descripción -->
               <div>
                 <label for="descripcion" class="form-label">Descripción</label>
-                <textarea id="descripcion" v-model.trim="form.descripcion" class="form-control" rows="3" placeholder="Describe la tarea..."></textarea>
+                <textarea id="descripcion" v-model.trim="form.descripcion" class="form-control" rows="2" placeholder="Describe la tarea..."></textarea>
               </div>
 
-              <!-- Fecha -->
               <div>
                 <label for="fecha" class="form-label">Fecha *</label>
                 <input id="fecha" v-model="form.fecha" type="date" class="form-control" />
                 <small v-if="errores.fecha" class="text-danger">{{ errores.fecha }}</small>
               </div>
 
-              <!-- Estado -->
               <div>
                 <label for="estado" class="form-label">Estado *</label>
                 <select id="estado" v-model="form.estado" class="form-select">
@@ -46,7 +42,6 @@
                 <small v-if="errores.estado" class="text-danger">{{ errores.estado }}</small>
               </div>
 
-              <!-- Prioridad -->
               <div>
                 <label class="form-label">Prioridad</label>
                 <div class="d-flex gap-3">
@@ -59,7 +54,25 @@
                 </div>
               </div>
 
-              <!-- Empleado (select con datos del servidor) -->
+              <!-- Horas y Precio/hora -->
+              <div class="row g-2">
+                <div class="col-6">
+                  <label for="horas" class="form-label">Horas</label>
+                  <input id="horas" v-model.number="form.horas" type="number" min="0" step="0.5"
+                    class="form-control" placeholder="0" @input="calcularTotal" />
+                </div>
+                <div class="col-6">
+                  <label for="precioHora" class="form-label">Precio/hora (€)</label>
+                  <input id="precioHora" v-model.number="form.precioHora" type="number" min="0" step="0.01"
+                    class="form-control" placeholder="0.00" @input="calcularTotal" />
+                </div>
+              </div>
+
+              <div class="alert alert-info py-2 mb-0 d-flex justify-content-between align-items-center">
+                <span class="fw-bold">💰 Total calculado:</span>
+                <span class="fs-5 fw-bold text-primary">{{ formatEuro(form.total) }}</span>
+              </div>
+
               <div>
                 <label for="empleadoSelect" class="form-label">Empleado</label>
                 <select id="empleadoSelect" v-model="form.empleadoId" class="form-select">
@@ -70,27 +83,15 @@
                 </select>
               </div>
 
-              <!-- Búsqueda por ID (requerimiento del enunciado) -->
               <div>
                 <label for="empleadoId" class="form-label">O busca por ID de empleado</label>
                 <div class="input-group">
-                  <input
-                    id="empleadoId"
-                    v-model="busquedaId"
-                    type="number"
-                    class="form-control"
-                    :class="estiloInputEmpleado"
-                    placeholder="ID del empleado"
-                    @input="resetBusqueda"
-                  />
+                  <input id="empleadoId" v-model="busquedaId" type="number" class="form-control"
+                    :class="estiloInputEmpleado" placeholder="ID del empleado" @input="resetBusqueda" />
                   <button type="button" class="btn btn-outline-secondary" @click="buscarEmpleadoPorId">🔍</button>
                 </div>
-                <small v-if="empleadoEncontrado === true" class="text-success fw-bold">
-                  ✅ {{ nombreEmpleadoBuscado }}
-                </small>
-                <small v-if="empleadoEncontrado === false" class="text-danger">
-                  ❌ Empleado no encontrado
-                </small>
+                <small v-if="empleadoEncontrado === true" class="text-success fw-bold">✅ {{ nombreEmpleadoBuscado }}</small>
+                <small v-if="empleadoEncontrado === false" class="text-danger">❌ Empleado no encontrado</small>
               </div>
 
               <div class="d-flex gap-2 flex-wrap">
@@ -115,18 +116,10 @@
 
           <div class="card-body">
             <div v-if="errorCarga" class="alert alert-danger">{{ errorCarga }}</div>
-
-            <div v-else-if="tareas.length === 0" class="alert alert-info mb-0">
-              No hay tareas todavía.
-            </div>
+            <div v-else-if="tareas.length === 0" class="alert alert-info mb-0">No hay tareas todavía.</div>
 
             <div v-else class="d-flex flex-column gap-3">
-              <div
-                v-for="tarea in tareas"
-                :key="tarea.id"
-                class="border rounded p-3"
-                :class="estadoClase(tarea.estado)"
-              >
+              <div v-for="tarea in tareas" :key="tarea.id" class="border rounded p-3" :class="estadoClase(tarea.estado)">
                 <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
                   <div>
                     <h3 class="h6 mb-1 fw-bold">{{ tarea.titulo }}</h3>
@@ -134,18 +127,24 @@
                     <p class="mb-1 small"><strong>📅 Fecha:</strong> {{ tarea.fecha }}</p>
                     <p class="mb-1 small">
                       <strong>📌 Estado:</strong>
-                      <span class="badge ms-1" :class="badgeEstado(tarea.estado)">
-                        {{ estadoLabel(tarea.estado) }}
-                      </span>
+                      <span class="badge ms-1" :class="badgeEstado(tarea.estado)">{{ estadoLabel(tarea.estado) }}</span>
                     </p>
                     <p class="mb-1 small"><strong>⚡ Prioridad:</strong> {{ tarea.prioridad }}</p>
+                    <p class="mb-1 small">
+                      <strong>⏱ Horas:</strong> {{ tarea.horas ?? '—' }}
+                      &nbsp;|&nbsp;
+                      <strong>€/h:</strong> {{ tarea.precioHora != null ? formatEuro(tarea.precioHora) : '—' }}
+                      &nbsp;|&nbsp;
+                      <strong>Total:</strong>
+                      <span class="text-primary fw-bold">{{ tarea.total != null ? formatEuro(tarea.total) : '—' }}</span>
+                    </p>
                     <p class="mb-0 small">
                       <strong>👤 Empleado:</strong>
                       <span class="fw-bold">{{ nombreEmpleado(tarea.empleadoId) }}</span>
                     </p>
                   </div>
 
-                  <div class="d-flex gap-2">
+                  <div class="d-flex flex-column gap-1">
                     <button class="btn btn-sm btn-outline-primary" @click="selTarea(tarea)">Cargar</button>
                     <button class="btn btn-sm btn-outline-danger" @click="delTarea(tarea.id)">Eliminar</button>
                   </div>
@@ -162,68 +161,61 @@
 
 <script setup>
 import { reactive, ref, computed, onMounted } from 'vue'
+import axios from 'axios'
 import Swal from 'sweetalert2'
 
-// ── Configuración ────────────────────────────────────────────────────
 const API_TAREAS    = 'http://localhost:3000/tareas'
 const API_EMPLEADOS = 'http://localhost:3000/empleados'
 
-// ── Estado ───────────────────────────────────────────────────────────
-const tareas    = ref([])
-const empleados = ref([])  // Se cargan del servidor para el select y para resolver nombres
-const cargando  = ref(false)
+const tareas     = ref([])
+const empleados  = ref([])
+const cargando   = ref(false)
 const errorCarga = ref('')
 
 const form = reactive({
-  titulo:      '',
-  descripcion: '',
-  fecha:       '',
-  estado:      '',
-  prioridad:   'media',
-  empleadoId:  null
+  titulo: '', descripcion: '', fecha: '', estado: '', prioridad: 'media',
+  empleadoId: null, horas: null, precioHora: null, total: 0
 })
 
 const errores = reactive({ titulo: '', fecha: '', estado: '' })
-const tareaSeleccionadaId = ref(null)
-
-// Búsqueda manual por ID
-const busquedaId = ref(null)
-const empleadoEncontrado  = ref(null)
+const tareaSeleccionadaId  = ref(null)
+const busquedaId            = ref(null)
+const empleadoEncontrado    = ref(null)
 const nombreEmpleadoBuscado = ref('')
 
-// ── Al montar: cargamos tareas y empleados ───────────────────────────
-onMounted(async () => {
-  await Promise.all([getTareas(), getEmpleados()])
-})
+onMounted(async () => { await Promise.all([getTareas(), getEmpleados()]) })
 
-// ── GET: tareas ───────────────────────────────────────────────────────
+// ── GET ───────────────────────────────────────────────────────────────
 async function getTareas() {
   errorCarga.value = ''
   try {
-    const res = await fetch(API_TAREAS)
-    if (!res.ok) throw new Error(`Error ${res.status}`)
-    tareas.value = await res.json()
-  } catch (err) {
-    errorCarga.value = 'No se pudo conectar con el servidor. ¿Está JSON Server en marcha?'
-    console.error(err)
-  }
+    const res = await axios.get(API_TAREAS)
+    tareas.value = res.data
+  } catch { errorCarga.value = 'No se pudo conectar con el servidor.' }
 }
 
-// ── GET: empleados (para el select y para resolver nombres) ──────────
 async function getEmpleados() {
   try {
-    const res = await fetch(API_EMPLEADOS)
-    if (!res.ok) throw new Error(`Error ${res.status}`)
-    empleados.value = await res.json()
-  } catch (err) {
-    console.error('Error cargando empleados:', err)
-  }
+    const res = await axios.get(API_EMPLEADOS)
+    empleados.value = res.data
+  } catch (err) { console.error(err) }
 }
 
-// ── Helpers de nombre y estilo ───────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────
+function formatEuro(valor) {
+  if (valor == null || isNaN(valor)) return '0,00 €'
+  return Number(valor).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })
+}
+
+function calcularTotal() {
+  const h = Number(form.horas)      || 0
+  const p = Number(form.precioHora) || 0
+  form.total = parseFloat((h * p).toFixed(2))
+}
+
 function nombreEmpleado(id) {
   if (!id) return 'Sin asignar'
-  const emp = empleados.value.find(e => e.id === Number(id))
+  const emp = empleados.value.find(e => String(e.id) === String(id))
   return emp ? `${emp.nombre} ${emp.apellidos}` : 'ID no válido'
 }
 
@@ -232,13 +224,11 @@ const estadoClase = (e) => ({
   'border-warning border-start border-4': e === 'en_proceso',
   'border-success border-start border-4': e === 'finalizada'
 })
-
 const badgeEstado = (e) => ({
-  'bg-danger':           e === 'pendiente',
+  'bg-danger': e === 'pendiente',
   'bg-warning text-dark': e === 'en_proceso',
-  'bg-success':          e === 'finalizada'
+  'bg-success': e === 'finalizada'
 })
-
 const estadoLabel = (e) =>
   ({ pendiente: 'Pendiente', en_proceso: 'En proceso', finalizada: 'Finalizada' }[e] || e)
 
@@ -248,14 +238,13 @@ const estiloInputEmpleado = computed(() => {
   return ''
 })
 
-// ── Búsqueda manual por ID ───────────────────────────────────────────
 function buscarEmpleadoPorId() {
   if (!busquedaId.value) return
-  const emp = empleados.value.find(e => e.id === Number(busquedaId.value))
+  const emp = empleados.value.find(e => String(e.id) === String(busquedaId.value))
   if (emp) {
-    empleadoEncontrado.value   = true
+    empleadoEncontrado.value    = true
     nombreEmpleadoBuscado.value = `${emp.nombre} ${emp.apellidos}`
-    form.empleadoId = emp.id   // Sincroniza con el select
+    form.empleadoId = emp.id
   } else {
     empleadoEncontrado.value = false
     Swal.fire({ icon: 'error', title: 'Error', text: `No existe ningún empleado con ID ${busquedaId.value}.` })
@@ -263,12 +252,8 @@ function buscarEmpleadoPorId() {
   }
 }
 
-function resetBusqueda() {
-  empleadoEncontrado.value   = null
-  nombreEmpleadoBuscado.value = ''
-}
+function resetBusqueda() { empleadoEncontrado.value = null; nombreEmpleadoBuscado.value = '' }
 
-// ── Validación ───────────────────────────────────────────────────────
 function validar() {
   errores.titulo = form.titulo ? '' : 'El título es obligatorio.'
   errores.fecha  = form.fecha  ? '' : 'La fecha es obligatoria.'
@@ -276,93 +261,61 @@ function validar() {
   return !errores.titulo && !errores.fecha && !errores.estado
 }
 
-// ── POST / PUT: añadir o editar tarea ────────────────────────────────
+// ── POST / PUT ────────────────────────────────────────────────────────
 async function addTarea() {
   if (!validar()) return
-
+  calcularTotal()
   Swal.fire({ title: 'Guardando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() })
-
   try {
     if (tareaSeleccionadaId.value) {
-      // PUT → editar
-      const res = await fetch(`${API_TAREAS}/${tareaSeleccionadaId.value}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, id: tareaSeleccionadaId.value })
+      await axios.put(`${API_TAREAS}/${tareaSeleccionadaId.value}`, {
+        ...form, id: tareaSeleccionadaId.value
       })
-      if (!res.ok) throw new Error(`Error ${res.status}`)
       Swal.fire({ title: '¡Actualizado!', icon: 'success', timer: 1800, showConfirmButton: false })
     } else {
-      // POST → crear
-      const res = await fetch(API_TAREAS, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
-      })
-      if (!res.ok) throw new Error(`Error ${res.status}`)
+      await axios.post(API_TAREAS, form)
       Swal.fire({ title: '¡Guardado!', icon: 'success', timer: 1800, showConfirmButton: false })
     }
-
     await getTareas()
     resetFormulario()
-  } catch (err) {
-    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo guardar la tarea.' })
-    console.error(err)
-  }
+  } catch { Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo guardar la tarea.' }) }
 }
 
-// ── DELETE: eliminar tarea ───────────────────────────────────────────
+// ── DELETE ────────────────────────────────────────────────────────────
 async function delTarea(id) {
   const { isConfirmed } = await Swal.fire({
-    title: '¿Eliminar tarea?',
-    text: 'Esta acción no se puede deshacer.',
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#d33',
-    cancelButtonColor: '#3085d6',
-    confirmButtonText: 'Sí, eliminar',
-    cancelButtonText: 'Cancelar'
+    title: '¿Eliminar tarea?', text: 'Esta acción no se puede deshacer.', icon: 'warning',
+    showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#3085d6',
+    confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar'
   })
   if (!isConfirmed) return
-
   Swal.fire({ title: 'Eliminando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() })
-
   try {
-    const res = await fetch(`${API_TAREAS}/${id}`, { method: 'DELETE' })
-    if (!res.ok) throw new Error(`Error ${res.status}`)
+    await axios.delete(`${API_TAREAS}/${id}`)
     if (tareaSeleccionadaId.value === id) resetFormulario()
     await getTareas()
     Swal.fire({ title: 'Eliminada', icon: 'success', timer: 1500, showConfirmButton: false })
-  } catch (err) {
-    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo eliminar la tarea.' })
-    console.error(err)
-  }
+  } catch { Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo eliminar la tarea.' }) }
 }
 
-// ── Cargar tarea en formulario ───────────────────────────────────────
 function selTarea(tarea) {
   tareaSeleccionadaId.value = tarea.id
   Object.assign(form, {
-    titulo:      tarea.titulo,
-    descripcion: tarea.descripcion,
-    fecha:       tarea.fecha,
-    estado:      tarea.estado,
-    prioridad:   tarea.prioridad,
-    empleadoId:  tarea.empleadoId
+    titulo: tarea.titulo, descripcion: tarea.descripcion, fecha: tarea.fecha,
+    estado: tarea.estado, prioridad: tarea.prioridad, empleadoId: tarea.empleadoId,
+    horas: tarea.horas ?? null, precioHora: tarea.precioHora ?? null, total: tarea.total ?? 0
   })
-  // Actualizar búsqueda manual si tenía empleado asignado
-  if (tarea.empleadoId) {
-    busquedaId.value = tarea.empleadoId
-    buscarEmpleadoPorId()
-  }
+  if (tarea.empleadoId) { busquedaId.value = tarea.empleadoId; buscarEmpleadoPorId() }
 }
 
-// ── Reset ─────────────────────────────────────────────────────────────
 function resetFormulario() {
   tareaSeleccionadaId.value = null
   busquedaId.value = null
   resetBusqueda()
-  Object.assign(form, { titulo: '', descripcion: '', fecha: '', estado: '', prioridad: 'media', empleadoId: null })
+  Object.assign(form, {
+    titulo: '', descripcion: '', fecha: '', estado: '', prioridad: 'media',
+    empleadoId: null, horas: null, precioHora: null, total: 0
+  })
   Object.keys(errores).forEach(k => errores[k] = '')
 }
 </script>
